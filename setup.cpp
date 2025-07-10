@@ -1,5 +1,5 @@
 #include "setup.hpp"
-
+#include "export.cpp"
 
 
 #ifdef BENCHMARK
@@ -590,7 +590,7 @@ void main_setup() { // benchmark; required extensions in defines.hpp: BENCHMARK,
 	}
 } /**/
 
-void main_setup() { // aerodynamics of a cow; required extensions in defines.hpp: FP16S, EQUILIBRIUM_BOUNDARIES, SUBGRID, INTERACTIVE_GRAPHICS or GRAPHICS
+/*void main_setup() { // aerodynamics of a cow; required extensions in defines.hpp: FP16S, EQUILIBRIUM_BOUNDARIES, SUBGRID, INTERACTIVE_GRAPHICS or GRAPHICS
 	// ################################################################## define simulation box size, viscosity and volume force ###################################################################
 	const uint3 lbm_N = resolution(float3(1.0f, 6.0f, 1.0f), 1000u); // input: simulation box aspect ratio and VRAM occupation in MB, output: grid resolution
 	const float si_u = 5.0f;
@@ -628,8 +628,7 @@ void main_setup() { // aerodynamics of a cow; required extensions in defines.hpp
 } /**/
 
 
-
-/*void main_setup() { // aerodynamics of a cow; required extensions in defines.hpp: FP16S, EQUILIBRIUM_BOUNDARIES, SUBGRID, INTERACTIVE_GRAPHICS or GRAPHICS
+void main_setup() { // ABL flow over a hill; required extensions in defines.hpp: FP16S, EQUILIBRIUM_BOUNDARIES, SUBGRID, INTERACTIVE_GRAPHICS or GRAPHICS
 	// ################################################################## define simulation box size, viscosity and volume force ###################################################################
 	const uint3 lbm_N = resolution(float3(1.0f, 2.0f, 0.3f), 1000u); // input: simulation box aspect ratio and VRAM occupation in MB, output: grid resolution
 	const float si_u = 0.5f;
@@ -653,23 +652,115 @@ void main_setup() { // aerodynamics of a cow; required extensions in defines.hpp
 		if(z==0u) lbm.flags[n] = TYPE_S; // solid floor
 		if(lbm.flags[n]!=TYPE_S) lbm.u.y[n] = lbm_u; // initialize y-velocity everywhere except in solid cells
 		if(x==0u||x==Nx-1u||y==0u||y==Ny-1u||z==Nz-1u) lbm.flags[n] = TYPE_E; // all other simulation box boundaries are inflow/outflow
-	}); // ####################################################################### run simulation, export images and data ##########################################################################
+	});
+
+	// ####################################################################### set lines for flowfield sampling ##########################################################################
+
+	// Sample data accross four unique x-positions.Two lins are slightly off center and two are near the domain boundaries.
+	const uint x1 = (uint)(0.1f*(float)lbm_N.x);
+	const uint x2 = (uint)(0.45f*(float)lbm_N.x);
+	const uint x3 = (uint)(0.55f*(float)lbm_N.x);
+	const uint x4 = (uint)(0.9f*(float)lbm_N.x);
+	
+	//  The y-positions are sampled at every grid point, and the z-position is fixed at one location.
+	const uint z = (uint)(0.1f*(float)lbm_N.z);
+
+	// ####################################################################### run simulation, export images and data ##########################################################################
 	lbm.graphics.visualization_modes = VIS_FLAG_SURFACE | VIS_Q_CRITERION;
 	// lbm.graphics.visualization_modes = VIS_STREAMLINES;
 #if defined(GRAPHICS) && !defined(INTERACTIVE_GRAPHICS)
 	lbm.graphics.set_camera_centered(0.0f, 25.0f, 100.0f, 1.0f);
 	lbm.run(0u, lbm_T); // initialize simulation
+
+
+	static bool header_written = false;
+	const string x1_csv_path = get_exe_path() + "x1_sample.csv";
+	const string x2_csv_path = get_exe_path() + "x2_sample.csv";
+	const string x3_csv_path = get_exe_path() + "x3_sample.csv";
+	const string x4_csv_path = get_exe_path() + "x4_sample.csv";
 	while(lbm.get_t()<=lbm_T) { // main simulation loop
 		if(lbm.graphics.next_frame(lbm_T, 10.0f))
 		{
-			lbm.graphics.write_frame();
+			std::ofstream csv1(x1_csv_path, std::ios::app);
+			if (!csv1) {
+				print_info("Failed to open CSV file for writing!");
+			} else {
+				if (!header_written) {
+					csv1 << "t,y,x,z,u,v,w\n";
+					header_written = true;
+				}
+				for (uint y = 1; y < lbm_N.y; y++)
+				{
+					float u_y_si = units.si_u(lbm.u.y[x1 + y * Nx + z * Nx * Ny]);
+					float u_x_si = units.si_u(lbm.u.x[x1 + y * Nx + z * Nx * Ny]);
+					float u_z_si = units.si_u(lbm.u.z[x1 + y * Nx + z * Nx * Ny]);
+					csv1 << lbm.get_t() << "," << y << "," << x1 << "," << z << ","
+						<< u_x_si << "," << u_y_si << "," << u_z_si << "\n";
+				}
+				csv1.close();
+			}
 
-			// Export simulation data to relevant devices. 
-			lbm.rho.write_device_to_vtk(); // density
-			lbm.u.write_device_to_vtk(); // velocity
+			std::ofstream csv2(x2_csv_path, std::ios::app);
+			if (!csv2) {
+				print_info("Failed to open CSV file for writing!");
+			} else {
+				if (!header_written) {
+					csv2 << "t,y,x,z,u,v,w\n";
+					header_written = true;
+				}
+				for (uint y = 1; y < lbm_N.y; y++)
+				{
+					float u_y_si = units.si_u(lbm.u.y[x2 + y * Nx + z * Nx * Ny]);
+					float u_x_si = units.si_u(lbm.u.x[x2 + y * Nx + z * Nx * Ny]);
+					float u_z_si = units.si_u(lbm.u.z[x2 + y * Nx + z * Nx * Ny]);
+					csv2 << lbm.get_t() << "," << y << "," << x2 << "," << z << ","
+						<< u_x_si << "," << u_y_si << "," << u_z_si << "\n";
+				}
+				csv2.close();
+			}
+
+			std::ofstream csv3(x3_csv_path, std::ios::app);
+			if (!csv3) {
+				print_info("Failed to open CSV file for writing!");
+			} else {
+				if (!header_written) {
+					csv3 << "t,y,x,z,u,v,w\n";
+					header_written = true;
+				}
+				for (uint y = 1; y < lbm_N.y; y++)
+				{
+					float u_y_si = units.si_u(lbm.u.y[x3 + y * Nx + z * Nx * Ny]);
+					float u_x_si = units.si_u(lbm.u.x[x3 + y * Nx + z * Nx * Ny]);
+					float u_z_si = units.si_u(lbm.u.z[x3 + y * Nx + z * Nx * Ny]);
+					csv3 << lbm.get_t() << "," << y << "," << x3 << "," << z << ","
+						<< u_x_si << "," << u_y_si << "," << u_z_si << "\n";
+				}
+				csv3.close();
+			}
+
+			std::ofstream csv4(x4_csv_path, std::ios::app);
+			if (!csv4) {
+				print_info("Failed to open CSV file for writing!");
+			} else {
+				if (!header_written) {
+					csv4 << "t,y,x,z,u,v,w\n";
+					header_written = true;
+				}
+				for (uint y = 1; y < lbm_N.y; y++)
+				{
+					float u_y_si = units.si_u(lbm.u.y[x4 + y * Nx + z * Nx * Ny]);
+					float u_x_si = units.si_u(lbm.u.x[x4 + y * Nx + z * Nx * Ny]);
+					float u_z_si = units.si_u(lbm.u.z[x4 + y * Nx + z * Nx * Ny]);
+					csv4 << lbm.get_t() << "," << y << "," << x4 << "," << z << ","
+						<< u_x_si << "," << u_y_si << "," << u_z_si << "\n";
+				}
+				csv4.close();
+			}
+
+			// lbm.rho.write_device_to_vtk(); // density
+			// lbm.u.write_device_to_vtk(); // velocity
 			// lbm.flags.write_device_to_vtk(); // flags
 		}
-
 		lbm.run(1u, lbm_T);
 		// lbm.write_mesh_to_vtk(const Mesh* mesh); // for exporting triangle meshes
 	}
