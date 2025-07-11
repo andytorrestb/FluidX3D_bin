@@ -653,7 +653,6 @@ void main_setup() { // ABL flow over a hill; required extensions in defines.hpp:
 		if(lbm.flags[n]!=TYPE_S) lbm.u.y[n] = lbm_u; // initialize y-velocity everywhere except in solid cells
 		if(x==0u||x==Nx-1u||y==0u||y==Ny-1u||z==Nz-1u) lbm.flags[n] = TYPE_E; // all other simulation box boundaries are inflow/outflow
 	});
-
 	// ####################################################################### set lines for flowfield sampling ##########################################################################
 
 	// Sample data accross four unique x-positions.Two lins are slightly off center and two are near the domain boundaries.
@@ -663,7 +662,7 @@ void main_setup() { // ABL flow over a hill; required extensions in defines.hpp:
 	const uint x4 = (uint)(0.9f*(float)lbm_N.x);
 	
 	//  The y-positions are sampled at every grid point, and the z-position is fixed at one location.
-	const uint z = (uint)(0.1f*(float)lbm_N.z);
+	const uint z = (uint)(0.05f*(float)lbm_N.z);
 
 	// ####################################################################### run simulation, export images and data ##########################################################################
 	lbm.graphics.visualization_modes = VIS_FLAG_SURFACE | VIS_Q_CRITERION;
@@ -681,6 +680,8 @@ void main_setup() { // ABL flow over a hill; required extensions in defines.hpp:
 	while(lbm.get_t()<=lbm_T) { // main simulation loop
 		if(lbm.graphics.next_frame(lbm_T, 10.0f))
 		{
+			int precision = 9;
+
 			std::ofstream csv1(x1_csv_path, std::ios::app);
 			if (!csv1) {
 				print_info("Failed to open CSV file for writing!");
@@ -689,11 +690,14 @@ void main_setup() { // ABL flow over a hill; required extensions in defines.hpp:
 					csv1 << "t,y,x,z,u,v,w\n";
 					header_written = true;
 				}
+				csv1 << std::fixed << std::setprecision(precision);
 				for (uint y = 1; y < lbm_N.y; y++)
 				{
-					float u_y_si = units.si_u(lbm.u.y[x1 + y * Nx + z * Nx * Ny]);
-					float u_x_si = units.si_u(lbm.u.x[x1 + y * Nx + z * Nx * Ny]);
-					float u_z_si = units.si_u(lbm.u.z[x1 + y * Nx + z * Nx * Ny]);
+					// std::cout << "t = " << lbm.get_t() << ", y = " << y << ", x1 = " << x1 << ", z = " << z << std::endl;
+					float u_y_si = units.si_u(lbm.u.y[lbm.index(x1, y, z)]);
+					// std::cout << "u_y = " << u_y_si << std::endl;
+					float u_x_si = units.si_u(lbm.u.x[lbm.index(x1, y, z)]);
+					float u_z_si = units.si_u(lbm.u.z[lbm.index(x1, y, z)]);
 					csv1 << lbm.get_t() << "," << y << "," << x1 << "," << z << ","
 						<< u_x_si << "," << u_y_si << "," << u_z_si << "\n";
 				}
@@ -702,17 +706,19 @@ void main_setup() { // ABL flow over a hill; required extensions in defines.hpp:
 
 			std::ofstream csv2(x2_csv_path, std::ios::app);
 			if (!csv2) {
-				print_info("Failed to open CSV file for writing!");
+				print_info("Failed to open CSV file for writing!")
+				;
 			} else {
 				if (!header_written) {
 					csv2 << "t,y,x,z,u,v,w\n";
 					header_written = true;
 				}
+				csv2 << std::fixed << std::setprecision(precision);
 				for (uint y = 1; y < lbm_N.y; y++)
 				{
-					float u_y_si = units.si_u(lbm.u.y[x2 + y * Nx + z * Nx * Ny]);
-					float u_x_si = units.si_u(lbm.u.x[x2 + y * Nx + z * Nx * Ny]);
-					float u_z_si = units.si_u(lbm.u.z[x2 + y * Nx + z * Nx * Ny]);
+					float u_y_si = units.si_u(lbm.u.y[lbm.index(x2, y, z)]);
+					float u_x_si = units.si_u(lbm.u.x[lbm.index(x2, y, z)]);
+					float u_z_si = units.si_u(lbm.u.z[lbm.index(x2, y, z)]);
 					csv2 << lbm.get_t() << "," << y << "," << x2 << "," << z << ","
 						<< u_x_si << "," << u_y_si << "," << u_z_si << "\n";
 				}
@@ -727,11 +733,12 @@ void main_setup() { // ABL flow over a hill; required extensions in defines.hpp:
 					csv3 << "t,y,x,z,u,v,w\n";
 					header_written = true;
 				}
+				csv3 << std::fixed << std::setprecision(precision);
 				for (uint y = 1; y < lbm_N.y; y++)
 				{
-					float u_y_si = units.si_u(lbm.u.y[x3 + y * Nx + z * Nx * Ny]);
-					float u_x_si = units.si_u(lbm.u.x[x3 + y * Nx + z * Nx * Ny]);
-					float u_z_si = units.si_u(lbm.u.z[x3 + y * Nx + z * Nx * Ny]);
+					float u_y_si = units.si_u(lbm.u.y[lbm.index(x3, y, z)]);
+					float u_x_si = units.si_u(lbm.u.x[lbm.index(x3, y, z)]);
+					float u_z_si = units.si_u(lbm.u.z[lbm.index(x3, y, z)]);
 					csv3 << lbm.get_t() << "," << y << "," << x3 << "," << z << ","
 						<< u_x_si << "," << u_y_si << "," << u_z_si << "\n";
 				}
@@ -746,17 +753,19 @@ void main_setup() { // ABL flow over a hill; required extensions in defines.hpp:
 					csv4 << "t,y,x,z,u,v,w\n";
 					header_written = true;
 				}
+				csv4 << std::fixed << std::setprecision(precision);
 				for (uint y = 1; y < lbm_N.y; y++)
 				{
-					float u_y_si = units.si_u(lbm.u.y[x4 + y * Nx + z * Nx * Ny]);
-					float u_x_si = units.si_u(lbm.u.x[x4 + y * Nx + z * Nx * Ny]);
-					float u_z_si = units.si_u(lbm.u.z[x4 + y * Nx + z * Nx * Ny]);
+					float u_y_si = units.si_u(lbm.u.y[lbm.index(x4, y, z)]);
+					float u_x_si = units.si_u(lbm.u.x[lbm.index(x4, y, z)]);
+					float u_z_si = units.si_u(lbm.u.z[lbm.index(x4, y, z)]);
 					csv4 << lbm.get_t() << "," << y << "," << x4 << "," << z << ","
 						<< u_x_si << "," << u_y_si << "," << u_z_si << "\n";
 				}
 				csv4.close();
 			}
 
+			lbm.graphics.write_frame();
 			// lbm.rho.write_device_to_vtk(); // density
 			// lbm.u.write_device_to_vtk(); // velocity
 			// lbm.flags.write_device_to_vtk(); // flags
